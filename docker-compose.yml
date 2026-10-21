@@ -1,0 +1,75 @@
+# Production-style stack: PostgreSQL + API (serves the built SPA) + background worker.
+# The API is published on 127.0.0.1 only. Put an HTTPS reverse proxy in front of it
+# before exposing it to a network (see docs/DEPLOYMENT.md). The database port is not published.
+#
+#   cp .env.example .env    # set SECRET_KEY, ENCRYPTION_KEY, ADMIN_PASSWORD, POSTGRES_PASSWORD
+#   docker compose up -d --build
+#   docker compose run --rm migrate    # also runs automatically before app/worker start
+
+x-app-env: &app-env
+  APP_ENV: production
+  DATABASE_URL: postgresql+psycopg://outreach:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/outreach
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+  AI_PROVIDER: ${AI_PROVIDER:-template}
+  AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+  AI_API_KEY: ${AI_API_KEY:-}
+  AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+  MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+  MICROSOFT_TENANT: ${MICROSOFT_TENANT:-common}
+  OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:-http://localhost:8000}
+  LOG_JSON: "true"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: outreach
+      POSTGRES_USER: outreach
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U outreach -d outreach"]
+      interval: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    command: ["python", "-m", "alembic", "upgrade", "head"]  # additive, non-destructive migrations only
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment: *app-env
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "app.workers.run"]
+    healthcheck:
+      disable: true  # the image healthcheck probes the HTTP API, which the worker doesn't serve
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

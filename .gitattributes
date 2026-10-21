@@ -1,0 +1,5 @@
+# Store text files with LF in the repository (CI, Docker and shell tooling expect it)
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary

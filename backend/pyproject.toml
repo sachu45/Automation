@@ -1,0 +1,37 @@
+[project]
+name = "personal-outreach-backend"
+version = "1.0.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE"]
+ignore = [
+  "E501",   # long lines are tolerated in a few query builders
+  "S101",   # asserts used for invariants
+  "S311",   # random jitter is not security-sensitive
+  "B008",   # FastAPI Depends() defaults
+  "UP017",
+  "UP046",  # keep Generic[T] for pydantic compatibility
+  "S110",
+  "S112",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B", "BLE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = false
+plugins = ["pydantic.mypy"]

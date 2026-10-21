@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime data (contains personal data and generated secrets)
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+backups/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+
+# Node
+node_modules/
+frontend/dist/
+*.log
+# Local Claude Code / editor config (machine-specific ports)
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
